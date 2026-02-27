@@ -1,0 +1,6 @@
+import { createPinia } from "pinia";
+
+export default function install(app: any) {
+  const pinia = createPinia();
+  app.use(pinia);
+}
