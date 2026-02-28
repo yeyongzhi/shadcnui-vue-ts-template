@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { useColorMode } from '@vueuse/core'
-import { toast } from 'vue-sonner'
+import toast from '@/plugins/message'
 
 type ColorMode = 'light' | 'dark' | 'auto'
 
