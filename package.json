@@ -6,34 +6,43 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docs:sync": "node script/sync-docs-site.mjs",
+    "docs:dev": "node script/sync-docs-site.mjs && vitepress dev docs --port 1543",
+    "docs:build": "node script/sync-docs-site.mjs && vitepress build docs",
+    "docs:preview": "vitepress preview docs --port 1543"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "@vueuse/core": "^14.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-vue-next": "^0.575.0",
+    "cn": "0.5.2",
     "pinia": "^3.0.4",
     "reka-ui": "^2.8.2",
     "sass": "^1.97.3",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "vue": "^3.5.25",
-    "vue-sonner": "^2.0.9"
+    "vue-sonner": "^2.0.9",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@internationalized/date": "^3.12.4",
+    "@lucide/vue": "^1.77.0",
     "@types/node": "^24.10.15",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vue/tsconfig": "^0.8.1",
     "tw-animate-css": "^1.4.0",
     "typescript": "~5.9.3",
     "vite": "^8.0.0-beta.13",
+    "vitepress": "^1.6.4",
     "vue-tsc": "^3.1.5"
   },
   "pnpm": {
     "overrides": {
-      "vite": "^8.0.0-beta.13"
+      "vite": "^8.0.0-beta.13",
+      "vitepress>vite": "^5.4.19"
     }
   },
   "packageManager": "pnpm@10.29.2+sha512.bef43fa759d91fd2da4b319a5a0d13ef7a45bb985a3d7342058470f9d2051a3ba8674e629672654686ef9443ad13a82da2beb9eeb3e0221c87b8154fff9d74b8"

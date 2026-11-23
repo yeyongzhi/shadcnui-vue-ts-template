@@ -1,0 +1,19 @@
+/* VitePress 站点细节微调（不覆盖默认主题结构） */
+:root {
+  --vp-c-brand-1: oklch(0.62 0.21 259);
+  --vp-c-brand-2: oklch(0.56 0.21 259);
+  --vp-c-brand-3: oklch(0.55 0.2 259);
+  --vp-c-brand-soft: rgba(59, 130, 246, 0.14);
+}
+
+.dark {
+  --vp-c-brand-1: oklch(0.72 0.18 259);
+  --vp-c-brand-2: oklch(0.78 0.16 259);
+  --vp-c-brand-3: oklch(0.7 0.17 259);
+  --vp-c-brand-soft: rgba(96, 165, 250, 0.16);
+}
+
+/* 代码块内 vue 代码标签着色提示 */
+.vp-doc :not(pre) > code {
+  border-radius: 4px;
+}

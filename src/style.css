@@ -4,10 +4,17 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* 全套圆角派生：全部引用 --radius，改这一个变量即可全局调整（含 xs/2xl） */
+  --radius-xs: calc(var(--radius) - 6px);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  /* 语义色注册为 Tailwind 颜色（text-success 等工具类可用） */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -59,6 +66,9 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  /* 语义色：成功 / 警告（亮暗共用，shadcn 未内置，项目自定义） */
+  --success: oklch(0.72 0.17 155);
+  --warning: oklch(0.77 0.16 70);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   /* --ring: oklch(0.708 0 0); */
@@ -95,6 +105,9 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* 暗色下提亮，保证与暗底对比 */
+  --success: oklch(0.79 0.17 155);
+  --warning: oklch(0.83 0.16 70);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
