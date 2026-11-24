@@ -67,7 +67,9 @@ const selectOptions = [
   { value: 2, label: '维护中', disabled: true },
 ]
 const dateValue = ref<string | null>(null)
+const dateShowTime = ref(false)
 const dateRange = ref({ start: null as string | null, end: null as string | null })
+const dateRangeShowTime = ref(false)
 const radioValue = ref<string | number>('all')
 const viewValue = ref<string | number | null>('card')
 const switchOn = ref(false)
@@ -108,17 +110,56 @@ const dialogSaving = ref(false)
 const drawerOpen = ref(false)
 const previewOpen = ref(false)
 
-const searchQuery = ref<Record<string, any>>({ keyword: '', level: null })
-const formModel = ref<Record<string, any>>({ name: '', level: null, count: 1, remark: '' })
+const searchQuery = ref<Record<string, any>>({
+  keyword: '',
+  level: null,
+  status: null,
+  features: [],
+  inspectedAt: null,
+  activeRange: { start: null, end: null },
+  count: null,
+  enabled: false,
+})
+const formModel = ref<Record<string, any>>({
+  name: '',
+  password: '',
+  level: null,
+  status: 'active',
+  enabled: true,
+  confirmed: false,
+  features: ['alarm'],
+  inspectedAt: null,
+  activeRange: { start: null, end: null },
+  count: 1,
+  remark: '',
+})
 const formFields: XFormField[] = [
   { key: 'name', label: '设备名称', required: true },
+  { key: 'password', label: '访问密码', type: 'password', required: true },
   { key: 'level', label: '重要等级', type: 'select', options: [{ value: 1, label: '高' }, { value: 2, label: '低' }] },
+  { key: 'status', label: '运行状态', type: 'radio', options: [{ value: 'active', label: '运行中' }, { value: 'paused', label: '已暂停' }] },
+  { key: 'features', label: '告警类型', type: 'checkbox-group', options: [{ value: 'alarm', label: '故障告警' }, { value: 'warning', label: '运行预警' }, { value: 'offline', label: '离线通知' }] },
+  { key: 'enabled', label: '启用设备', type: 'switch' },
+  { key: 'confirmed', label: '确认配置', type: 'checkbox', placeholder: '我已核对设备配置' },
+  { key: 'inspectedAt', label: '巡检时间', type: 'date', showTime: true },
+  { key: 'activeRange', label: '维护时段', type: 'date-range', showTime: true },
   { key: 'count', label: '数量', type: 'number', min: 1, max: 99 },
   { key: 'remark', label: '备注', type: 'textarea', rows: 3 },
 ]
+const formRef = ref<{ validateAndToast: () => boolean } | null>(null)
+const handleFormSubmit = () => {
+  if (!formRef.value?.validateAndToast()) return
+  toast.success(`表单校验通过：${JSON.stringify(formModel.value)}`)
+}
 const searchFields: XFormField[] = [
   { key: 'keyword', label: '关键词' },
   { key: 'level', label: '等级', type: 'select', options: [{ value: 1, label: '高' }, { value: 2, label: '低' }] },
+  { key: 'status', label: '运行状态', type: 'radio', options: [{ value: 'active', label: '运行中' }, { value: 'paused', label: '已暂停' }] },
+  { key: 'features', label: '告警类型', type: 'checkbox-group', options: [{ value: 'alarm', label: '故障告警' }, { value: 'warning', label: '运行预警' }] },
+  { key: 'inspectedAt', label: '巡检时间', type: 'date' },
+  { key: 'activeRange', label: '维护时段', type: 'date-range' },
+  { key: 'count', label: '设备数量', type: 'number', min: 0, max: 999 },
+  { key: 'enabled', label: '仅看启用', type: 'switch' },
 ]
 
 const handleDialogConfirm = () => {
@@ -254,7 +295,7 @@ const btnSizes = [
 
       <!-- 内容区：固定高度，内部滚动 -->
       <main class="flex-1 min-h-0 overflow-y-auto px-6 py-6">
-        <div class="flex flex-col gap-6 scroll-smooth">
+        <div class="max-w-4xl flex flex-col gap-6 scroll-smooth">
           <!-- 外观设置 -->
           <section id="section-appearance" class="scroll-mt-4">
             <XCard title="外观设置" title-prefix>
@@ -306,11 +347,11 @@ const btnSizes = [
                 <div class="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md bg-muted/40 px-4 py-3">
                   <div class="flex items-center gap-2">
                     <span class="text-xs text-muted-foreground">variant</span>
-                    <XSegmented v-model="btnVariant" :options="[...btnVariants]" size="small" />
+                    <XSelect v-model="btnVariant" :options="[...btnVariants]" :clearable="false" class="w-40" />
                   </div>
                   <div class="flex items-center gap-2">
                     <span class="text-xs text-muted-foreground">size</span>
-                    <XSegmented v-model="btnSize" :options="[...btnSizes]" size="small" />
+                    <XSelect v-model="btnSize" :options="[...btnSizes]" :clearable="false" class="w-32" />
                   </div>
                   <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <XSwitch_ v-model="btnIcon" class="scale-90" /> icon
@@ -361,7 +402,7 @@ const btnSizes = [
                   </label>
                 </div>
                 <div class="py-1">
-                  <XInput placeholder="可清空输入" :clearable="inputClearable" :disabled="inputDisabled" />
+                  <XInput placeholder="可清空输入" :clearable="inputClearable" :disabled="inputDisabled" class="max-w-sm" />
                 </div>
               </div>
             </XCard>
@@ -389,8 +430,11 @@ const btnSizes = [
           <section id="section-datepicker" class="scroll-mt-4">
             <XCard title="XDatePicker 日期选择" title-prefix>
               <div class="flex flex-col gap-4 py-1">
+                <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <XSwitch_ v-model="dateShowTime" class="scale-90" /> showTime
+                </label>
                 <XText type="secondary" size="sm">当前值：{{ dateValue ?? '未选日期' }}</XText>
-                <XDatePicker v-model="dateValue" placeholder="请选择日期" />
+                <XDatePicker v-model="dateValue" placeholder="请选择日期" :show-time="dateShowTime" />
               </div>
             </XCard>
           </section>
@@ -399,10 +443,13 @@ const btnSizes = [
           <section id="section-daterange" class="scroll-mt-4">
             <XCard title="XDateRangePicker 日期范围" title-prefix>
               <div class="flex flex-col gap-4 py-1">
+                <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <XSwitch_ v-model="dateRangeShowTime" class="scale-90" /> showTime
+                </label>
                 <XText type="secondary" size="sm">
                   当前值：{{ dateRange.start ?? '未选' }} ~ {{ dateRange.end ?? '未选' }}
                 </XText>
-                <XDateRangePicker v-model="dateRange" class="w-80" />
+                <XDateRangePicker v-model="dateRange" class="w-80" :show-time="dateRangeShowTime" />
               </div>
             </XCard>
           </section>
@@ -627,7 +674,13 @@ const btnSizes = [
           <section id="section-searchform" class="scroll-mt-4">
             <XCard title="XSearchForm 查询区" title-prefix>
               <div class="flex flex-col gap-4 py-1">
-                <XSearchForm v-model="searchQuery" :fields="searchFields" @search="v => toast.success(`查询条件：${JSON.stringify(v)}`)" />
+                <XSearchForm
+                  v-model="searchQuery"
+                  :fields="searchFields"
+                  :collapsed-count="4"
+                  :columns="3"
+                  @search="v => toast.success(`查询条件：${JSON.stringify(v)}`)"
+                />
               </div>
             </XCard>
           </section>
@@ -636,9 +689,9 @@ const btnSizes = [
           <section id="section-form" class="scroll-mt-4">
             <XCard title="XForm 表单" title-prefix>
               <div class="flex flex-col gap-4 py-1">
-                <XForm v-model="formModel" :fields="formFields" :label-width="80" :columns="2" />
+                <XForm ref="formRef" v-model="formModel" :fields="formFields" :label-width="80" :columns="2" />
                 <div class="flex justify-end">
-                  <XButton size="sm" @click="toast.info(`校验通过后才提交，当前值：${JSON.stringify(formModel)}`)">模拟提交</XButton>
+                  <XButton size="sm" @click="handleFormSubmit">校验并提交</XButton>
                 </div>
               </div>
             </XCard>

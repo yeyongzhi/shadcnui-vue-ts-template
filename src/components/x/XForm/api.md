@@ -1,6 +1,6 @@
 # XForm
 
-配置驱动表单组件（轻量实现，不引 vee-validate）。`fields` 数组描述表单项，支持 input / textarea / select / date / number / custom 六类控件；`required` 项在提交前校验。
+配置驱动表单组件（轻量实现，不引 vee-validate）。`fields` 数组描述表单项，支持文本、密码、多行文本、数字、下拉、单选组、复选框、复选框组、开关、日期、日期范围和自定义控件；日期和日期范围支持时分秒精度。
 
 ## Props
 
@@ -18,11 +18,13 @@
 |------|------|--------|------|
 | key | `string` | — | 字段键名（对应 `modelValue` 中的 key） |
 | label | `string` | — | 标签文案 |
-| type | `'input' \| 'textarea' \| 'select' \| 'date' \| 'number' \| 'custom'` | `'input'` | 表单项类型 |
+| type | `'input' \| 'password' \| 'textarea' \| 'number' \| 'select' \| 'radio' \| 'checkbox' \| 'checkbox-group' \| 'switch' \| 'date' \| 'date-range' \| 'custom'` | `'input'` | 表单项类型 |
 | placeholder | `string` | 按类型默认 | 占位文案 |
+| checkboxLabel | `string` | 字段标签 | 单个 `checkbox` 控件的说明文案 |
 | required | `boolean` | `false` | 是否必填（校验失败 toast 提示） |
 | disabled | `boolean` | `false` | 是否禁用该项 |
-| options | `XSelectOption[]` | `[]` | `select` 类型的选项列表 |
+| showTime | `boolean` | `false` | `date` / `date-range` 是否精确到时分秒 |
+| options | `XSelectOption[]` | `[]` | `select` / `radio` / `checkbox-group` 的选项列表 |
 | clearable | `boolean` | `true` | `select` 是否可清空 |
 | rows | `number` | `3` | `textarea` 行数 |
 | precision | `number` | `undefined` | `number` 小数位精度 |
@@ -44,11 +46,13 @@ import { ref } from 'vue'
 import XForm from '@/components/x/XForm'
 import type { XFormField } from '@/components/x/XForm'
 
-const model = ref({ name: '', level: null, count: 1, remark: '' })
+const model = ref({ name: '', level: null, count: 1, remark: '', enabled: true, features: [] })
 
 const fields: XFormField[] = [
   { key: 'name', label: '设备名称', required: true },
   { key: 'level', label: '重要等级', type: 'select', options: [{ value: 1, label: '高' }, { value: 2, label: '低' }] },
+  { key: 'enabled', label: '启用', type: 'switch' },
+  { key: 'features', label: '通知方式', type: 'checkbox-group', options: [{ value: 'sms', label: '短信' }, { value: 'email', label: '邮件' }] },
   { key: 'count', label: '数量', type: 'number', min: 1, max: 99 },
   { key: 'remark', label: '备注', type: 'textarea', rows: 4 },
 ]

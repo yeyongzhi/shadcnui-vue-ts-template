@@ -8,7 +8,7 @@
 |------|------|--------|------|
 | modelValue | `string \| number \| null` | `''` | 输入值，支持 `v-model` |
 | placeholder | `string` | `'请输入'` | 占位文字 |
-| clearable | `boolean` | `true` | 是否可清空（有值时显示清空按钮） |
+| clearable | `boolean` | `true` | 是否显示输入框末尾的清除图标（有值时显示） |
 | disabled | `boolean` | `false` | 是否禁用 |
 | readonly | `boolean` | `false` | 是否只读 |
 

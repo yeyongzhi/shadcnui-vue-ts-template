@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch, type PropType } from 'vue'
+import { computed, ref, shallowRef, watch, type PropType } from 'vue'
 import { CalendarDate, type DateValue } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
+import { createYear, createYearRange } from 'reka-ui/date'
 import {
   DateRangePickerRoot,
   DateRangePickerCalendar,
   DateRangePickerHeader,
-  DateRangePickerHeading,
   DateRangePickerPrev,
   DateRangePickerNext,
   DateRangePickerGrid,
@@ -20,7 +20,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import XIcon from '@/components/x/XIcon'
-import XText from '@/components/x/XText'
+import XClearButton from '@/components/x/XClearButton'
+import XSelect from '@/components/x/XSelect'
 import { cn } from '@/lib/utils'
 import {
   X_DATE_RANGE_DEFAULT_END_PLACEHOLDER,
@@ -56,6 +57,11 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  /** 是否选择到时分秒精度 */
+  showTime: {
+    type: Boolean,
+    default: false,
+  },
   /** 是否禁用 */
   disabled: {
     type: Boolean,
@@ -74,6 +80,29 @@ const emit = defineEmits<{
 }>()
 
 const open = ref(false)
+const startTimeOpen = ref(false)
+const endTimeOpen = ref(false)
+const now = new Date()
+const calendarPlaceholder = shallowRef<DateValue>(new CalendarDate(now.getFullYear(), now.getMonth() + 1, 1))
+const startTime = ref({ hour: 0, minute: 0, second: 0 })
+const endTime = ref({ hour: 0, minute: 0, second: 0 })
+const padTime = (value: number) => String(value).padStart(2, '0')
+const timeOptions = (count: number, suffix: string) => Array.from({ length: count }, (_, value) => ({
+  value,
+  label: `${padTime(value)}${suffix}`,
+}))
+const hourOptions = timeOptions(24, '时')
+const minuteOptions = timeOptions(60, '分')
+const secondOptions = timeOptions(60, '秒')
+
+const parseTime = (value: string | null | undefined) => {
+  const match = /\d{4}-\d{2}-\d{2}[T\s](\d{2}):(\d{2})(?::(\d{2}))?/.exec(value ?? '')
+  return {
+    hour: Number(match?.[1] ?? 0),
+    minute: Number(match?.[2] ?? 0),
+    second: Number(match?.[3] ?? 0),
+  }
+}
 
 /** 'YYYY-MM-DD' | null → CalendarDate | undefined */
 const toDateValue = (s: string | null): CalendarDate | undefined => {
@@ -96,6 +125,52 @@ const calendarValue = computed(() => ({
   end: toDateValue(props.modelValue?.end),
 }))
 
+watch(() => props.modelValue, (value) => {
+  startTime.value = parseTime(value?.start)
+  endTime.value = parseTime(value?.end)
+}, { immediate: true })
+
+watch(open, (isOpen) => {
+  if (!isOpen) return
+  calendarPlaceholder.value = calendarValue.value.start
+    ?? calendarValue.value.end
+    ?? new CalendarDate(now.getFullYear(), now.getMonth() + 1, 1)
+})
+
+const monthOptions = (date: DateValue) => createYear({ dateObj: date }).map(month => ({
+  value: month.month,
+  label: `${month.month}月`,
+}))
+
+const yearOptions = (date: DateValue) => createYearRange({
+  start: date.cycle('year', -100),
+  end: date.cycle('year', 10),
+}).map(year => ({
+  value: year.year,
+  label: `${year.year}年`,
+}))
+
+const updateCalendarPlaceholder = (date: DateValue) => {
+  calendarPlaceholder.value = date
+}
+
+const updateDisplayedMonth = (
+  monthIndex: number,
+  part: 'month' | 'year',
+  value: string | number | null,
+  displayedMonth: DateValue,
+) => {
+  if (value === null) return
+
+  const nextMonth = part === 'month'
+    ? displayedMonth.set({ month: Number(value), day: 1 })
+    : displayedMonth.set({ year: Number(value), day: 1 })
+
+  calendarPlaceholder.value = monthIndex === 0
+    ? nextMonth
+    : nextMonth.subtract({ months: 1 })
+}
+
 // 显示文案
 const startText = computed(() => props.modelValue?.start ?? '')
 const endText = computed(() => props.modelValue?.end ?? '')
@@ -104,6 +179,10 @@ const emitRange = (range: { start?: unknown, end?: unknown }) => {
   const next: XDateRangeValue = {
     start: toStr(range.start),
     end: toStr(range.end),
+  }
+  if (props.showTime) {
+    if (next.start) next.start += ` ${padTime(startTime.value.hour)}:${padTime(startTime.value.minute)}:${padTime(startTime.value.second)}`
+    if (next.end) next.end += ` ${padTime(endTime.value.hour)}:${padTime(endTime.value.minute)}:${padTime(endTime.value.second)}`
   }
   emit('update:modelValue', next)
   emit('change', next)
@@ -125,11 +204,6 @@ watch(calendarValue, (v) => {
       : undefined) as DateRange | undefined
   }
 })
-watch(innerRange, (v) => {
-  if (sameDate(v?.start, calendarValue.value.start) && sameDate(v?.end, calendarValue.value.end)) return
-  emitRange(v ?? {})
-})
-
 // 禁用未来日期
 const isDateDisabled = (date: DateValue) => {
   if (!props.disableFuture) return false
@@ -139,7 +213,60 @@ const isDateDisabled = (date: DateValue) => {
 }
 
 const handleClear = () => {
-  emitRange({ start: undefined, end: undefined })
+  innerRange.value = undefined
+}
+
+const handleTriggerClear = () => {
+  innerRange.value = undefined
+  emitRange({})
+  open.value = false
+}
+
+const handleQuickRange = (range: 'week' | 'month' | 'quarter') => {
+  const current = new Date()
+  const end = new CalendarDate(current.getFullYear(), current.getMonth() + 1, current.getDate())
+  const start = range === 'week'
+    ? end.subtract({ days: 6 })
+    : end.subtract({ months: range === 'month' ? 1 : 3 })
+
+  innerRange.value = { start, end } as DateRange
+}
+
+const handleRangeUpdate = (value: unknown) => {
+  innerRange.value = value as DateRange | undefined
+}
+
+const handleTimeChange = (which: 'start' | 'end', part: 'hour' | 'minute' | 'second', value: string | number | null) => {
+  if (value === null) return
+  const time = which === 'start' ? startTime.value : endTime.value
+  time[part] = Number(value)
+}
+
+const timeLabel = (which: 'start' | 'end') => {
+  const time = which === 'start' ? startTime.value : endTime.value
+  return `${padTime(time.hour)}:${padTime(time.minute)}:${padTime(time.second)}`
+}
+
+const timeValue = (which: 'start' | 'end', part: 'hour' | 'minute' | 'second') =>
+  (which === 'start' ? startTime.value : endTime.value)[part]
+
+const setTimePopoverOpen = (which: 'start' | 'end', value: boolean) => {
+  startTimeOpen.value = which === 'start' && value
+  endTimeOpen.value = which === 'end' && value
+}
+
+const handleCancel = () => {
+  innerRange.value = (calendarValue.value.start || calendarValue.value.end
+    ? { start: calendarValue.value.start, end: calendarValue.value.end }
+    : undefined) as DateRange | undefined
+  startTime.value = parseTime(props.modelValue?.start)
+  endTime.value = parseTime(props.modelValue?.end)
+  open.value = false
+}
+
+const handleConfirm = () => {
+  emitRange(innerRange.value ?? {})
+  open.value = false
 }
 
 const weekDays = ['一', '二', '三', '四', '五', '六', '日']
@@ -169,17 +296,25 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
           >
             {{ endText || endPlaceholder }}
           </span>
+          <XClearButton
+            v-if="clearable && (startText || endText) && !disabled"
+            label="清除日期范围"
+            class="ml-auto"
+            @clear="handleTriggerClear"
+          />
         </Button>
       </PopoverTrigger>
-      <PopoverContent class="w-auto p-0 z-[100]" align="start">
+      <PopoverContent class="w-max min-w-[36rem] max-w-[calc(100vw-2rem)] p-0 z-[100]" align="start">
         <!-- 点击后展开双面板选择起止日期 -->
         <DateRangePickerRoot
           :model-value="(innerRange as DateRange | undefined)"
+          :placeholder="calendarPlaceholder"
           locale="zh-CN"
           :number-of-months="2"
           :week-starts-on="1"
           :is-date-disabled="isDateDisabled"
-          @update:model-value="(v: unknown) => { innerRange = v as DateRange | undefined }"
+          @update:model-value="handleRangeUpdate"
+          @update:placeholder="updateCalendarPlaceholder"
         >
           <DateRangePickerCalendar
             v-slot="{ grid, weekDays: days }"
@@ -188,22 +323,81 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
           <div class="flex gap-x-4">
             <template v-for="(monthGrid, monthIndex) in grid" :key="monthIndex">
               <div class="flex min-w-0 flex-1 flex-col">
-                <DateRangePickerHeader class="pt-0">
-                  <DateRangePickerHeading class="text-sm font-medium" />
-                  <nav class="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between">
-                    <DateRangePickerPrev
-                      v-if="monthIndex === 0"
-                      class="pointer-events-auto inline-flex size-7 items-center justify-center rounded-md border border-border bg-transparent opacity-70 transition-opacity hover:opacity-100"
+                <DateRangePickerHeader class="flex items-center justify-between gap-1 pt-0">
+                  <DateRangePickerPrev
+                    v-if="monthIndex === 0"
+                    class="inline-flex size-7 items-center justify-center rounded-md border border-border bg-transparent opacity-70 transition-opacity hover:opacity-100"
+                  >
+                    <XIcon name="ChevronLeft" :size="14" />
+                  </DateRangePickerPrev>
+                  <div class="flex min-w-0 items-center gap-1">
+                    <XSelect
+                      :model-value="monthGrid.value.year"
+                      :options="yearOptions(monthGrid.value)"
+                      :clearable="false"
+                      size="sm"
+                      class="w-20"
+                      @update:model-value="value => updateDisplayedMonth(monthIndex, 'year', value, monthGrid.value)"
+                    />
+                    <XSelect
+                      :model-value="monthGrid.value.month"
+                      :options="monthOptions(monthGrid.value)"
+                      :clearable="false"
+                      size="sm"
+                      class="w-[4.5rem]"
+                      @update:model-value="value => updateDisplayedMonth(monthIndex, 'month', value, monthGrid.value)"
+                    />
+                    <Popover
+                      v-if="showTime"
+                      :open="monthIndex === 0 ? startTimeOpen : endTimeOpen"
+                      @update:open="value => setTimePopoverOpen(monthIndex === 0 ? 'start' : 'end', value)"
                     >
-                      <XIcon name="ChevronLeft" :size="14" />
-                    </DateRangePickerPrev>
-                    <DateRangePickerNext
-                      v-else
-                      class="pointer-events-auto inline-flex size-7 items-center justify-center rounded-md border border-border bg-transparent opacity-70 transition-opacity hover:opacity-100"
-                    >
-                      <XIcon name="ChevronRight" :size="14" />
-                    </DateRangePickerNext>
-                  </nav>
+                      <PopoverTrigger as-child>
+                        <Button variant="outline" size="sm" class="h-8 shrink-0 px-2 font-normal tabular-nums">
+                          {{ timeLabel(monthIndex === 0 ? 'start' : 'end') }}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent class="z-[110] w-72 p-3" align="end" side="bottom">
+                        <div class="flex items-center gap-1">
+                          <XSelect
+                            :model-value="timeValue(monthIndex === 0 ? 'start' : 'end', 'hour')"
+                            :options="hourOptions"
+                            :clearable="false"
+                            size="sm"
+                            class="w-20"
+                            aria-label="小时"
+                            @update:model-value="value => handleTimeChange(monthIndex === 0 ? 'start' : 'end', 'hour', value)"
+                          />
+                          <span class="text-muted-foreground">:</span>
+                          <XSelect
+                            :model-value="timeValue(monthIndex === 0 ? 'start' : 'end', 'minute')"
+                            :options="minuteOptions"
+                            :clearable="false"
+                            size="sm"
+                            class="w-20"
+                            aria-label="分钟"
+                            @update:model-value="value => handleTimeChange(monthIndex === 0 ? 'start' : 'end', 'minute', value)"
+                          />
+                          <span class="text-muted-foreground">:</span>
+                          <XSelect
+                            :model-value="timeValue(monthIndex === 0 ? 'start' : 'end', 'second')"
+                            :options="secondOptions"
+                            :clearable="false"
+                            size="sm"
+                            class="w-20"
+                            aria-label="秒钟"
+                            @update:model-value="value => handleTimeChange(monthIndex === 0 ? 'start' : 'end', 'second', value)"
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <DateRangePickerNext
+                    v-if="monthIndex === 1"
+                    class="inline-flex size-7 items-center justify-center rounded-md border border-border bg-transparent opacity-70 transition-opacity hover:opacity-100"
+                  >
+                    <XIcon name="ChevronRight" :size="14" />
+                  </DateRangePickerNext>
                 </DateRangePickerHeader>
 
                 <DateRangePickerGrid class="mt-2">
@@ -245,15 +439,28 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
           </DateRangePickerCalendar>
         </DateRangePickerRoot>
 
-        <!-- 底部：区间回显 + 清空 -->
-        <div class="flex items-center justify-between border-t border-border px-2 py-1.5">
-          <XText v-if="startText && endText" type="secondary" size="xs">
-            {{ startText }} ~ {{ endText }}
-          </XText>
-          <XText v-else type="secondary" size="xs">请选择起止日期</XText>
-          <Button v-if="clearable" variant="ghost" size="sm" class="h-7 text-muted-foreground" @click="handleClear">
-            清空
-          </Button>
+        <!-- 底部：快捷范围 + 操作按钮 -->
+        <div class="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
+          <div class="flex min-w-0 flex-wrap items-center gap-1">
+            <Button variant="ghost" size="sm" class="h-8 px-2 text-muted-foreground" @click="handleQuickRange('week')">
+              近一周
+            </Button>
+            <Button variant="ghost" size="sm" class="h-8 px-2 text-muted-foreground" @click="handleQuickRange('month')">
+              近一个月
+            </Button>
+            <Button variant="ghost" size="sm" class="h-8 px-2 text-muted-foreground" @click="handleQuickRange('quarter')">
+              近三个月
+            </Button>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <Button v-if="clearable" variant="ghost" size="sm" class="h-8 text-muted-foreground" @click="handleClear">
+              清空
+            </Button>
+            <Button variant="outline" size="sm" class="h-8" @click="handleCancel">取消</Button>
+            <Button size="sm" class="h-8" :disabled="!innerRange?.start || !innerRange?.end" @click="handleConfirm">
+              确认
+            </Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

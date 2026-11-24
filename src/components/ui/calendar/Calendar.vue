@@ -8,7 +8,7 @@ import { cn } from "cn"
 import { CalendarRoot, useDateFormatter, useForwardPropsEmits } from "reka-ui"
 import { createYear, createYearRange, toDate } from "reka-ui/date"
 import { computed, toRaw } from "vue"
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import XSelect from '@/components/x/XSelect'
 import { CalendarCell, CalendarCellTrigger, CalendarGrid, CalendarGridBody, CalendarGridHead, CalendarGridRow, CalendarHeadCell, CalendarHeader, CalendarHeading, CalendarNextButton, CalendarPrevButton } from "."
 
 const props = withDefaults(defineProps<CalendarRootProps & { class?: HTMLAttributes["class"], layout?: LayoutTypes, yearRange?: DateValue[] }>(), {
@@ -36,6 +36,16 @@ const yearRange = computed(() => {
   })
 })
 
+const monthOptions = (date: DateValue) => createYear({ dateObj: date }).map(month => ({
+  value: month.month,
+  label: formatter.custom(toDate(month), { month: 'short' }),
+}))
+
+const yearOptions = computed(() => yearRange.value.map(year => ({
+  value: year.year,
+  label: formatter.custom(toDate(year), { year: 'numeric' }),
+})))
+
 const [DefineMonthTemplate, ReuseMonthTemplate] = createReusableTemplate<{ date: DateValue }>()
 const [DefineYearTemplate, ReuseYearTemplate] = createReusableTemplate<{ date: DateValue }>()
 
@@ -44,49 +54,25 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
 <template>
   <DefineMonthTemplate v-slot="{ date }">
-    <div class="**:data-[slot=native-select-icon]:right-1">
-      <div class="relative">
-        <div class="absolute inset-0 flex h-full items-center text-sm pl-2 pointer-events-none">
-          {{ formatter.custom(toDate(date), { month: 'short' }) }}
-        </div>
-        <NativeSelect
-          class="text-xs h-8 pr-6 pl-2 text-transparent relative"
-          :model-value="date.month"
-          @change="(e: Event) => {
-            placeholder = placeholder.set({
-              month: Number((e?.target as any)?.value),
-            })
-          }"
-        >
-          <NativeSelectOption v-for="(month) in createYear({ dateObj: date })" :key="month.toString()" :value="month.month" :selected="date.month === month.month">
-            {{ formatter.custom(toDate(month), { month: 'short' }) }}
-          </NativeSelectOption>
-        </NativeSelect>
-      </div>
-    </div>
+    <XSelect
+      :model-value="date.month"
+      :options="monthOptions(date)"
+      :clearable="false"
+      size="sm"
+      class="w-[4.5rem]"
+      @update:model-value="value => { if (value !== null) placeholder = placeholder.set({ month: Number(value) }) }"
+    />
   </DefineMonthTemplate>
 
   <DefineYearTemplate v-slot="{ date }">
-    <div class="**:data-[slot=native-select-icon]:right-1">
-      <div class="relative">
-        <div class="absolute inset-0 flex h-full items-center text-sm pl-2 pointer-events-none">
-          {{ formatter.custom(toDate(date), { year: 'numeric' }) }}
-        </div>
-        <NativeSelect
-          class="text-xs h-8 pr-6 pl-2 text-transparent relative"
-          :model-value="date.year"
-          @change="(e: Event) => {
-            placeholder = placeholder.set({
-              year: Number((e?.target as any)?.value),
-            })
-          }"
-        >
-          <NativeSelectOption v-for="(year) in yearRange" :key="year.toString()" :value="year.year" :selected="date.year === year.year">
-            {{ formatter.custom(toDate(year), { year: 'numeric' }) }}
-          </NativeSelectOption>
-        </NativeSelect>
-      </div>
-    </div>
+    <XSelect
+      :model-value="date.year"
+      :options="yearOptions"
+      :clearable="false"
+      size="sm"
+      class="w-20"
+      @update:model-value="value => { if (value !== null) placeholder = placeholder.set({ year: Number(value) }) }"
+    />
   </DefineYearTemplate>
 
   <CalendarRoot
@@ -96,12 +82,12 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     data-slot="calendar"
     :class="cn('p-3', props.class)"
   >
-    <CalendarHeader class="pt-0">
+    <CalendarHeader class="justify-start px-10 pt-0">
       <slot name="calendar-heading" :date="date" :month="ReuseMonthTemplate" :year="ReuseYearTemplate">
         <template v-if="layout === 'month-and-year'">
-          <div class="flex items-center justify-center gap-1">
-            <ReuseMonthTemplate :date="date" />
+          <div class="flex items-center justify-start gap-1">
             <ReuseYearTemplate :date="date" />
+            <ReuseMonthTemplate :date="date" />
           </div>
         </template>
         <template v-else-if="layout === 'month-only'">

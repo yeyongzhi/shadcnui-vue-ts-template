@@ -9,7 +9,7 @@
 | modelValue | `string \| number \| null` | `undefined` | 当前选中值，支持 `v-model`；`null` 表示未选中 |
 | options | `XSelectOption[]` | `[]` | 选项列表，项含 `value` / `label` / `disabled` |
 | placeholder | `string` | `'请选择'` | 占位文案 |
-| clearable | `boolean` | `true` | 是否可清空（选中后悬浮触发器显示清空按钮） |
+| clearable | `boolean` | `true` | 是否显示触发器末尾的清除图标（选中后显示） |
 | disabled | `boolean` | `false` | 是否禁用 |
 | size | `'sm' \| 'default'` | `'default'` | 触发器尺寸 |
 

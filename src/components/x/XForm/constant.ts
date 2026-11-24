@@ -2,7 +2,19 @@ import type { Component, VNode } from 'vue'
 import type { XSelectOption } from '@/components/x/XSelect'
 
 /** XForm 表单项类型 */
-export type XFormFieldType = 'input' | 'textarea' | 'select' | 'date' | 'number' | 'custom'
+export type XFormFieldType =
+  | 'input'
+  | 'password'
+  | 'textarea'
+  | 'select'
+  | 'radio'
+  | 'checkbox'
+  | 'checkbox-group'
+  | 'switch'
+  | 'date'
+  | 'date-range'
+  | 'number'
+  | 'custom'
 
 /** XForm 表单项配置 */
 export interface XFormField {
@@ -14,11 +26,15 @@ export interface XFormField {
   type?: XFormFieldType
   /** 占位文案（缺省按类型给默认值） */
   placeholder?: string
+  /** 单个 checkbox 控件的说明文案 */
+  checkboxLabel?: string
   /** 是否必填（提交时校验，失败 toast 提示） */
   required?: boolean
   /** 是否禁用 */
   disabled?: boolean
-  /** select 类型的选项列表 */
+  /** 日期、日期范围是否精确到时分秒 */
+  showTime?: boolean
+  /** select / radio / checkbox-group 类型的选项列表 */
   options?: XSelectOption[]
   /** select 是否可清空 */
   clearable?: boolean
@@ -43,6 +59,12 @@ export const X_FORM_PLACEHOLDER_MAP: Record<XFormFieldType, string> = {
   textarea: '请输入',
   select: '请选择',
   date: '请选择日期',
+  'date-range': '请选择日期范围',
   number: '请输入',
+  password: '请输入',
+  radio: '',
+  checkbox: '',
+  'checkbox-group': '',
+  switch: '',
   custom: '',
 }

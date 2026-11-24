@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import XClearButton from '@/components/x/XClearButton'
 import { X_SELECT_DEFAULT_PLACEHOLDER, type XSelectOption } from './constant'
 
 defineOptions({ inheritAttrs: false })
@@ -92,7 +93,7 @@ const handleClear = () => {
           {{ selectedLabel }}
         </SelectValue>
       </SelectTrigger>
-      <SelectContent class="max-h-72 z-[100]">
+      <SelectContent class="max-h-72 z-[120]">
         <SelectItem
           v-for="opt in normalizedOptions"
           :key="String(opt.value)"
@@ -104,14 +105,11 @@ const handleClear = () => {
       </SelectContent>
     </Select>
     <!-- 清空按钮：选中且可清空时，悬浮显示在触发器右侧 -->
-    <button
+    <XClearButton
       v-if="clearable && modelValue !== null && modelValue !== undefined"
-      type="button"
-      class="absolute right-7 top-1/2 z-10 hidden size-4 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/40 text-background group-hover:inline-flex"
-      aria-label="清空"
-      @click.stop="handleClear"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="size-2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-    </button>
+      label="清空"
+      class="absolute right-7 top-1/2 z-10 -translate-y-1/2"
+      @clear="handleClear"
+    />
   </div>
 </template>

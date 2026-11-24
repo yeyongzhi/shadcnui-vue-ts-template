@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useAttrs, watch, type PropType } from 'vue'
 import { Input } from '@/components/ui/input'
-import XIcon from '@/components/x/XIcon'
+import XClearButton from '@/components/x/XClearButton'
 import { X_INPUT_DEFAULT_CLEARABLE } from './constant'
 
 defineOptions({ inheritAttrs: false })
@@ -96,14 +96,11 @@ const handleClear = () => {
     >
     </Input>
     <!-- 清空按钮 -->
-    <button
+    <XClearButton
       v-if="showClear"
-      type="button"
-      class="absolute right-2 top-1/2 -translate-y-1/2 inline-flex size-4 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/40 text-background transition-opacity hover:bg-muted-foreground/60"
-      aria-label="清空"
-      @click="handleClear"
-    >
-      <XIcon name="X" :size="10" />
-    </button>
+      label="清空"
+      class="absolute right-2 top-1/2 -translate-y-1/2"
+      @clear="handleClear"
+    />
   </div>
 </template>

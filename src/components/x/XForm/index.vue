@@ -3,9 +3,13 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, type PropType } from 
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Switch as XSwitch } from '@/components/ui/switch'
 import XInput from '@/components/x/XInput'
 import XSelect from '@/components/x/XSelect'
 import XDatePicker from '@/components/x/XDatePicker'
+import XDateRangePicker from '@/components/x/XDateRangePicker'
+import XRadioBox from '@/components/x/XRadioBox'
 import toast from '@/plugins/message'
 import {
   X_FORM_DEFAULT_LABEL_WIDTH,
@@ -79,14 +83,18 @@ const placeholderOf = (field: XFormField) =>
 const isDisabled = (field: XFormField) => props.disabled || field.disabled
 
 // required 校验
+const isFieldEmpty = (field: XFormField) => {
+  const value = draft.value[field.key]
+  if (field.type === 'checkbox' || field.type === 'switch') return value !== true
+  return value === undefined || value === null || value === ''
+    || (Array.isArray(value) && value.length === 0)
+    || (typeof value === 'string' && value.trim() === '')
+}
+
 function validate(): boolean {
   for (const field of props.fields) {
     if (!field.required) continue
-    const value = draft.value[field.key]
-    const empty = value === undefined || value === null || value === ''
-      || (Array.isArray(value) && value.length === 0)
-      || (typeof value === 'string' && value.trim() === '')
-    if (empty) return false
+    if (isFieldEmpty(field)) return false
   }
   return true
 }
@@ -94,11 +102,7 @@ function validate(): boolean {
 function validateAndToast(): boolean {
   for (const field of props.fields) {
     if (!field.required) continue
-    const value = draft.value[field.key]
-    const empty = value === undefined || value === null || value === ''
-      || (Array.isArray(value) && value.length === 0)
-      || (typeof value === 'string' && value.trim() === '')
-    if (empty) {
+    if (isFieldEmpty(field)) {
       toast.warning(`请填写「${field.label}」`)
       return false
     }
@@ -118,6 +122,13 @@ const numberInput = (field: XFormField, e: Event) => {
   if (field.max !== undefined) num = Math.min(num, field.max)
   if (field.precision !== undefined) num = Number(num.toFixed(field.precision))
   draft.value[field.key] = num
+}
+
+const updateCheckboxGroup = (field: XFormField, optionValue: string | number, checked: boolean | 'indeterminate') => {
+  const selected = Array.isArray(draft.value[field.key]) ? [...draft.value[field.key]] : []
+  draft.value[field.key] = checked === true
+    ? [...new Set([...selected, optionValue])]
+    : selected.filter(value => value !== optionValue)
 }
 
 // 网格布局：
@@ -160,11 +171,11 @@ const gridStyle = computed(() => {
 </script>
 
 <template>
-  <div ref="rootEl" class="x-form grid gap-x-4 gap-y-4" :style="gridStyle">
+  <div ref="rootEl" class="x-form grid items-center gap-x-4 gap-y-4" :style="gridStyle">
     <template v-for="field in fields" :key="field.key">
       <!-- 标签 -->
       <Label
-        class="mt-2.5 text-sm leading-none font-medium"
+        class="text-sm leading-none font-medium"
         :class="labelPosition === 'top' ? '' : 'justify-self-end text-right'"
       >
         <span v-if="field.required" class="mr-0.5 text-destructive">*</span>
@@ -185,8 +196,38 @@ const gridStyle = computed(() => {
           v-else-if="field.type === 'date'"
           v-model="draft[field.key]"
           :placeholder="placeholderOf(field)"
+          :show-time="field.showTime"
           :disabled="isDisabled(field)"
         />
+        <XDateRangePicker
+          v-else-if="field.type === 'date-range'"
+          v-model="draft[field.key]"
+          :disabled="isDisabled(field)"
+          :show-time="field.showTime"
+        />
+        <XRadioBox
+          v-else-if="field.type === 'radio'"
+          v-model="draft[field.key]"
+          :options="field.options ?? []"
+          :disabled="isDisabled(field)"
+        />
+        <div v-else-if="field.type === 'checkbox-group'" class="flex flex-wrap gap-x-4 gap-y-2">
+          <label v-for="option in field.options ?? []" :key="String(option.value)" class="flex items-center gap-2 text-sm">
+            <Checkbox
+              :checked="Array.isArray(draft[field.key]) && draft[field.key].includes(option.value)"
+              :disabled="isDisabled(field) || option.disabled"
+              @update:checked="checked => updateCheckboxGroup(field, option.value, checked)"
+            />
+            {{ option.label }}
+          </label>
+        </div>
+        <label v-else-if="field.type === 'checkbox'" class="flex min-h-9 items-center gap-2 text-sm">
+          <Checkbox v-model:checked="draft[field.key]" :disabled="isDisabled(field)" />
+          {{ field.checkboxLabel || field.label }}
+        </label>
+        <div v-else-if="field.type === 'switch'" class="flex min-h-9 items-center gap-2">
+          <XSwitch v-model="draft[field.key]" :disabled="isDisabled(field)" />
+        </div>
         <Input
           v-else-if="field.type === 'number'"
           type="number"
@@ -201,6 +242,14 @@ const gridStyle = computed(() => {
           :placeholder="placeholderOf(field)"
           :rows="field.rows ?? 3"
           :disabled="isDisabled(field)"
+        />
+        <XInput
+          v-else-if="field.type === 'password'"
+          v-model="draft[field.key]"
+          type="password"
+          :placeholder="placeholderOf(field)"
+          :disabled="isDisabled(field)"
+          :clearable="false"
         />
         <component
           :is="field.render"
