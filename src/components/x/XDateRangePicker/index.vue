@@ -2,13 +2,11 @@
 import { computed, ref, shallowRef, watch, type PropType } from 'vue'
 import { CalendarDate, type DateValue } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
-import { createYear, createYearRange } from 'reka-ui/date'
+import { createMonth, createYear, createYearRange } from 'reka-ui/date'
 import {
   DateRangePickerRoot,
   DateRangePickerCalendar,
   DateRangePickerHeader,
-  DateRangePickerPrev,
-  DateRangePickerNext,
   DateRangePickerGrid,
   DateRangePickerGridHead,
   DateRangePickerGridBody,
@@ -83,7 +81,9 @@ const open = ref(false)
 const startTimeOpen = ref(false)
 const endTimeOpen = ref(false)
 const now = new Date()
-const calendarPlaceholder = shallowRef<DateValue>(new CalendarDate(now.getFullYear(), now.getMonth() + 1, 1))
+/** 两个面板各自展示的月份（互不影响） */
+const initialMonth = new CalendarDate(now.getFullYear(), now.getMonth() + 1, 1)
+const panelMonths = shallowRef<DateValue[]>([initialMonth, initialMonth.add({ months: 1 })])
 const startTime = ref({ hour: 0, minute: 0, second: 0 })
 const endTime = ref({ hour: 0, minute: 0, second: 0 })
 const padTime = (value: number) => String(value).padStart(2, '0')
@@ -130,11 +130,12 @@ watch(() => props.modelValue, (value) => {
   endTime.value = parseTime(value?.end)
 }, { immediate: true })
 
+const monthStartOf = (date: DateValue) => new CalendarDate(date.year, date.month, 1)
+
 watch(open, (isOpen) => {
   if (!isOpen) return
-  calendarPlaceholder.value = calendarValue.value.start
-    ?? calendarValue.value.end
-    ?? new CalendarDate(now.getFullYear(), now.getMonth() + 1, 1)
+  const base = monthStartOf(calendarValue.value.start ?? calendarValue.value.end ?? initialMonth)
+  panelMonths.value = [base, base.add({ months: 1 })]
 })
 
 const monthOptions = (date: DateValue) => createYear({ dateObj: date }).map(month => ({
@@ -150,26 +151,31 @@ const yearOptions = (date: DateValue) => createYearRange({
   label: `${year.year}年`,
 }))
 
-const updateCalendarPlaceholder = (date: DateValue) => {
-  calendarPlaceholder.value = date
+/** 只改指定面板的月份，两个面板互不影响 */
+const panelMonthAt = (index: number) => panelMonths.value[index] ?? initialMonth
+
+const setPanelMonth = (index: number, date: DateValue) => {
+  const next = [...panelMonths.value]
+  next[index] = monthStartOf(date)
+  panelMonths.value = next
 }
 
-const updateDisplayedMonth = (
-  monthIndex: number,
-  part: 'month' | 'year',
-  value: string | number | null,
-  displayedMonth: DateValue,
-) => {
+const shiftPanelMonth = (index: number, months: number) => {
+  setPanelMonth(index, panelMonthAt(index).add({ months }))
+}
+
+const updateDisplayedMonth = (index: number, part: 'month' | 'year', value: string | number | null) => {
   if (value === null) return
-
-  const nextMonth = part === 'month'
-    ? displayedMonth.set({ month: Number(value), day: 1 })
-    : displayedMonth.set({ year: Number(value), day: 1 })
-
-  calendarPlaceholder.value = monthIndex === 0
-    ? nextMonth
-    : nextMonth.subtract({ months: 1 })
+  const current = panelMonthAt(index)
+  setPanelMonth(index, part === 'month'
+    ? current.set({ month: Number(value) })
+    : current.set({ year: Number(value) }))
 }
+
+/** 面板网格：与 reka 内部一致，按周一开头生成本月 + 前后补位日期 */
+const panelGrids = computed(() =>
+  panelMonths.value.map(dateObj => createMonth({ dateObj, weekStartsOn: 1, fixedWeeks: false, locale: 'zh-CN' })),
+)
 
 // 显示文案
 const startText = computed(() => props.modelValue?.start ?? '')
@@ -230,6 +236,9 @@ const handleQuickRange = (range: 'week' | 'month' | 'quarter') => {
     : end.subtract({ months: range === 'month' ? 1 : 3 })
 
   innerRange.value = { start, end } as DateRange
+  // 快捷范围后把两个面板对齐到区间起点，避免仍停留在旧月份
+  const startMonth = monthStartOf(start)
+  panelMonths.value = [startMonth, startMonth.add({ months: 1 })]
 }
 
 const handleRangeUpdate = (value: unknown) => {
@@ -284,14 +293,14 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
         >
           <XIcon name="CalendarRange" :size="14" class="text-muted-foreground shrink-0" />
           <span
-            class="flex-1 truncate text-left"
+            class="flex-1 truncate text-center"
             :class="startText ? '' : 'text-muted-foreground'"
           >
             {{ startText || startPlaceholder }}
           </span>
-          <XIcon name="ChevronRight" :size="12" class="text-muted-foreground shrink-0" />
+          <span class="shrink-0 text-muted-foreground">-</span>
           <span
-            class="flex-1 truncate text-left"
+            class="flex-1 truncate text-center"
             :class="endText ? '' : 'text-muted-foreground'"
           >
             {{ endText || endPlaceholder }}
@@ -305,31 +314,29 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
         </Button>
       </PopoverTrigger>
       <PopoverContent class="w-max min-w-[36rem] max-w-[calc(100vw-2rem)] p-0 z-[100]" align="start">
-        <!-- 点击后展开双面板选择起止日期 -->
+        <!-- 点击后展开双面板选择起止日期（每个面板各自独立翻页） -->
         <DateRangePickerRoot
           :model-value="(innerRange as DateRange | undefined)"
-          :placeholder="calendarPlaceholder"
+          :placeholder="panelMonths[0]"
           locale="zh-CN"
-          :number-of-months="2"
+          :number-of-months="1"
           :week-starts-on="1"
           :is-date-disabled="isDateDisabled"
           @update:model-value="handleRangeUpdate"
-          @update:placeholder="updateCalendarPlaceholder"
         >
-          <DateRangePickerCalendar
-            v-slot="{ grid, weekDays: days }"
-            :class="cn('p-3')"
-          >
+          <DateRangePickerCalendar :class="cn('p-3')">
           <div class="flex gap-x-4">
-            <template v-for="(monthGrid, monthIndex) in grid" :key="monthIndex">
+            <template v-for="(monthGrid, monthIndex) in panelGrids" :key="monthIndex">
               <div class="flex min-w-0 flex-1 flex-col">
                 <DateRangePickerHeader class="flex items-center justify-between gap-1 pt-0">
-                  <DateRangePickerPrev
-                    v-if="monthIndex === 0"
-                    class="inline-flex size-7 items-center justify-center rounded-md border border-border bg-transparent opacity-70 transition-opacity hover:opacity-100"
+                  <Button
+                    variant="ghost"
+                    class="size-8 p-0 opacity-50 hover:opacity-100"
+                    aria-label="上一个月"
+                    @click="shiftPanelMonth(monthIndex, -1)"
                   >
-                    <XIcon name="ChevronLeft" :size="14" />
-                  </DateRangePickerPrev>
+                    <XIcon name="ChevronLeft" :size="16" />
+                  </Button>
                   <div class="flex min-w-0 items-center gap-1">
                     <XSelect
                       :model-value="monthGrid.value.year"
@@ -337,7 +344,7 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
                       :clearable="false"
                       size="sm"
                       class="w-20"
-                      @update:model-value="value => updateDisplayedMonth(monthIndex, 'year', value, monthGrid.value)"
+                      @update:model-value="value => updateDisplayedMonth(monthIndex, 'year', value)"
                     />
                     <XSelect
                       :model-value="monthGrid.value.month"
@@ -345,7 +352,7 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
                       :clearable="false"
                       size="sm"
                       class="w-[4.5rem]"
-                      @update:model-value="value => updateDisplayedMonth(monthIndex, 'month', value, monthGrid.value)"
+                      @update:model-value="value => updateDisplayedMonth(monthIndex, 'month', value)"
                     />
                     <Popover
                       v-if="showTime"
@@ -392,23 +399,25 @@ const weekDays = ['一', '二', '三', '四', '五', '六', '日']
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <DateRangePickerNext
-                    v-if="monthIndex === 1"
-                    class="inline-flex size-7 items-center justify-center rounded-md border border-border bg-transparent opacity-70 transition-opacity hover:opacity-100"
+                  <Button
+                    variant="ghost"
+                    class="size-8 p-0 opacity-50 hover:opacity-100"
+                    aria-label="下一个月"
+                    @click="shiftPanelMonth(monthIndex, 1)"
                   >
-                    <XIcon name="ChevronRight" :size="14" />
-                  </DateRangePickerNext>
+                    <XIcon name="ChevronRight" :size="16" />
+                  </Button>
                 </DateRangePickerHeader>
 
                 <DateRangePickerGrid class="mt-2">
                   <DateRangePickerGridHead>
                     <DateRangePickerGridRow>
                       <DateRangePickerHeadCell
-                        v-for="(day, i) in days"
+                        v-for="(day, i) in weekDays"
                         :key="i"
                         class="w-9 rounded-md text-[0.8rem] font-normal text-muted-foreground"
                       >
-                        {{ weekDays[i] ?? day }}
+                        {{ day }}
                       </DateRangePickerHeadCell>
                     </DateRangePickerGridRow>
                   </DateRangePickerGridHead>

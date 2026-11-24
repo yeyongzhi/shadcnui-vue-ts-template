@@ -9,7 +9,8 @@ import XInput from '@/components/x/XInput'
 import XSelect from '@/components/x/XSelect'
 import XDatePicker from '@/components/x/XDatePicker'
 import XDateRangePicker from '@/components/x/XDateRangePicker'
-import XRadioBox from '@/components/x/XRadioBox'
+import XRadioGroup from '@/components/x/XRadioGroup'
+import XCheckboxGroup from '@/components/x/XCheckboxGroup'
 import toast from '@/plugins/message'
 import {
   X_FORM_DEFAULT_LABEL_WIDTH,
@@ -124,13 +125,6 @@ const numberInput = (field: XFormField, e: Event) => {
   draft.value[field.key] = num
 }
 
-const updateCheckboxGroup = (field: XFormField, optionValue: string | number, checked: boolean | 'indeterminate') => {
-  const selected = Array.isArray(draft.value[field.key]) ? [...draft.value[field.key]] : []
-  draft.value[field.key] = checked === true
-    ? [...new Set([...selected, optionValue])]
-    : selected.filter(value => value !== optionValue)
-}
-
 // 网格布局：
 // - labelPosition: top → 每列 1fr
 // - labelPosition: left → 「标签 控件」重复 columns 组
@@ -205,22 +199,21 @@ const gridStyle = computed(() => {
           :disabled="isDisabled(field)"
           :show-time="field.showTime"
         />
-        <XRadioBox
+        <XRadioGroup
           v-else-if="field.type === 'radio'"
           v-model="draft[field.key]"
           :options="field.options ?? []"
+          :direction="field.direction"
           :disabled="isDisabled(field)"
         />
-        <div v-else-if="field.type === 'checkbox-group'" class="flex flex-wrap gap-x-4 gap-y-2">
-          <label v-for="option in field.options ?? []" :key="String(option.value)" class="flex items-center gap-2 text-sm">
-            <Checkbox
-              :checked="Array.isArray(draft[field.key]) && draft[field.key].includes(option.value)"
-              :disabled="isDisabled(field) || option.disabled"
-              @update:checked="checked => updateCheckboxGroup(field, option.value, checked)"
-            />
-            {{ option.label }}
-          </label>
-        </div>
+        <XCheckboxGroup
+          v-else-if="field.type === 'checkbox-group'"
+          v-model="draft[field.key]"
+          :options="field.options ?? []"
+          :direction="field.direction"
+          :show-check-all="field.checkAll !== false"
+          :disabled="isDisabled(field)"
+        />
         <label v-else-if="field.type === 'checkbox'" class="flex min-h-9 items-center gap-2 text-sm">
           <Checkbox v-model:checked="draft[field.key]" :disabled="isDisabled(field)" />
           {{ field.checkboxLabel || field.label }}

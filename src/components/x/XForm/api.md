@@ -1,6 +1,6 @@
 # XForm
 
-配置驱动表单组件（轻量实现，不引 vee-validate）。`fields` 数组描述表单项，支持文本、密码、多行文本、数字、下拉、单选组、复选框、复选框组、开关、日期、日期范围和自定义控件；日期和日期范围支持时分秒精度。
+配置驱动表单组件（轻量实现，不引 vee-validate）。`fields` 数组描述表单项，支持文本、密码、多行文本、数字、下拉、单选组、复选框、复选框组、开关、日期、日期范围和自定义控件；日期和日期范围支持时分秒精度，单选组与复选框组分别使用 `XRadioGroup` / `XCheckboxGroup` 渲染。
 
 ## Props
 
@@ -18,13 +18,15 @@
 |------|------|--------|------|
 | key | `string` | — | 字段键名（对应 `modelValue` 中的 key） |
 | label | `string` | — | 标签文案 |
-| type | `'input' \| 'password' \| 'textarea' \| 'number' \| 'select' \| 'radio' \| 'checkbox' \| 'checkbox-group' \| 'switch' \| 'date' \| 'date-range' \| 'custom'` | `'input'` | 表单项类型 |
+| type | `'input' \| 'password' \| 'textarea' \| 'number' \| 'select' \| 'radio' \| 'checkbox' \| 'checkbox-group' \| 'switch' \| 'date' \| 'date-range' \| 'custom'` | `'input'` | 表单项类型（`radio` 为普通单选框组，`checkbox-group` 为普通多选框组） |
 | placeholder | `string` | 按类型默认 | 占位文案 |
 | checkboxLabel | `string` | 字段标签 | 单个 `checkbox` 控件的说明文案 |
 | required | `boolean` | `false` | 是否必填（校验失败 toast 提示） |
 | disabled | `boolean` | `false` | 是否禁用该项 |
 | showTime | `boolean` | `false` | `date` / `date-range` 是否精确到时分秒 |
 | options | `XSelectOption[]` | `[]` | `select` / `radio` / `checkbox-group` 的选项列表 |
+| direction | `'horizontal' \| 'vertical'` | `'horizontal'` | `radio` / `checkbox-group` 的排列方向 |
+| checkAll | `boolean` | `true` | `checkbox-group` 是否在顶部显示「全选」复选框，设为 `false` 关闭 |
 | clearable | `boolean` | `true` | `select` 是否可清空 |
 | rows | `number` | `3` | `textarea` 行数 |
 | precision | `number` | `undefined` | `number` 小数位精度 |
@@ -38,6 +40,12 @@
 | validate() | `boolean` | 校验所有 `required` 项 |
 | validateAndToast() | `boolean` | 校验并在失败时 toast 提示「请填写「标签」」 |
 
+## Events
+
+| 事件名 | 参数 | 说明 |
+|--------|------|------|
+| update:modelValue | `(value: Record<string, any>)` | 表单数据变化时同步回 `v-model` |
+
 ## 使用示例
 
 ```vue
@@ -46,13 +54,16 @@ import { ref } from 'vue'
 import XForm from '@/components/x/XForm'
 import type { XFormField } from '@/components/x/XForm'
 
-const model = ref({ name: '', level: null, count: 1, remark: '', enabled: true, features: [] })
+const model = ref({ name: '', level: null, status: 'active', count: 1, remark: '', enabled: true, features: [] })
 
 const fields: XFormField[] = [
   { key: 'name', label: '设备名称', required: true },
   { key: 'level', label: '重要等级', type: 'select', options: [{ value: 1, label: '高' }, { value: 2, label: '低' }] },
+  // 普通单选框组（XRadioGroup）
+  { key: 'status', label: '运行状态', type: 'radio', options: [{ value: 'active', label: '运行中' }, { value: 'paused', label: '已暂停' }] },
   { key: 'enabled', label: '启用', type: 'switch' },
-  { key: 'features', label: '通知方式', type: 'checkbox-group', options: [{ value: 'sms', label: '短信' }, { value: 'email', label: '邮件' }] },
+  // 多选框组（XCheckboxGroup），direction 可选 'vertical'
+  { key: 'features', label: '通知方式', type: 'checkbox-group', direction: 'horizontal', options: [{ value: 'sms', label: '短信' }, { value: 'email', label: '邮件' }] },
   { key: 'count', label: '数量', type: 'number', min: 1, max: 99 },
   { key: 'remark', label: '备注', type: 'textarea', rows: 4 },
 ]

@@ -36,6 +36,10 @@ export interface XFormField {
   showTime?: boolean
   /** select / radio / checkbox-group 类型的选项列表 */
   options?: XSelectOption[]
+  /** radio / checkbox-group 的排列方向 */
+  direction?: 'horizontal' | 'vertical'
+  /** checkbox-group 是否在顶部显示「全选」复选框，默认显示 */
+  checkAll?: boolean
   /** select 是否可清空 */
   clearable?: boolean
   /** textarea 行数 */

@@ -8,6 +8,8 @@ import useThemeStore from '@/store/theme'
 import toast from '@/plugins/message'
 import XSegmented from '@/components/x/XSegmented'
 import XRadioBox from '@/components/x/XRadioBox'
+import XRadioGroup from '@/components/x/XRadioGroup'
+import XCheckboxGroup from '@/components/x/XCheckboxGroup'
 import XCard from '@/components/x/XCard'
 import XButton from '@/components/x/XButton'
 import XInput from '@/components/x/XInput'
@@ -73,6 +75,36 @@ const dateRangeShowTime = ref(false)
 const radioValue = ref<string | number>('all')
 const viewValue = ref<string | number | null>('card')
 const switchOn = ref(false)
+
+/** XRadioGroup / XCheckboxGroup 预览 */
+const radioGroupValue = ref<string | number | null>('day')
+const radioGroupDirection = ref<'horizontal' | 'vertical'>('horizontal')
+const radioGroupSize = ref<'small' | 'medium' | 'large'>('medium')
+const radioGroupOptions = [
+  { value: 'day', label: '按日' },
+  { value: 'week', label: '按周' },
+  { value: 'month', label: '按月' },
+  { value: 'quarter', label: '按季（禁用）', disabled: true },
+]
+
+const checkboxGroupValue = ref<(string | number)[]>(['email'])
+const checkboxGroupDirection = ref<'horizontal' | 'vertical'>('horizontal')
+const checkboxGroupSize = ref<'small' | 'medium' | 'large'>('medium')
+const checkboxGroupOptions = [
+  { value: 'email', label: '邮件' },
+  { value: 'sms', label: '短信' },
+  { value: 'inbox', label: '站内信' },
+  { value: 'call', label: '电话（禁用）', disabled: true },
+]
+const directionOptions = [
+  { value: 'horizontal', label: '横向' },
+  { value: 'vertical', label: '纵向' },
+]
+const sizeOptions = [
+  { value: 'small', label: '小' },
+  { value: 'medium', label: '中' },
+  { value: 'large', label: '大' },
+]
 
 /** 快捷属性交互：可调组件参数实时看效果 */
 const btnVariant = ref<'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'>('default')
@@ -293,8 +325,8 @@ const btnSizes = [
         <XText type="secondary" size="sm" class="hidden sm:inline">主题色：{{ themeStore.currentPreset.label }}</XText>
       </header>
 
-      <!-- 内容区：固定高度，内部滚动 -->
-      <main class="flex-1 min-h-0 overflow-y-auto px-6 py-6">
+      <!-- 内容区：固定高度，内部滚动（滚动条隐藏，滚轮/触控板/键盘仍可滚动） -->
+      <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div class="max-w-4xl flex flex-col gap-6 scroll-smooth">
           <!-- 外观设置 -->
           <section id="section-appearance" class="scroll-mt-4">
@@ -462,6 +494,79 @@ const btnSizes = [
                   v-model="radioValue"
                   :options="[{ value: 'all', label: '全部' }, { value: 'high', label: '高风险' }]"
                 />
+              </div>
+            </XCard>
+          </section>
+
+          <!-- XRadioGroup -->
+          <section id="section-radiogroup" class="scroll-mt-4">
+            <XCard title="XRadioGroup 单选" title-prefix>
+              <div class="flex flex-col gap-4 py-1">
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-muted-foreground">direction</span>
+                    <XSegmented
+                      :model-value="radioGroupDirection"
+                      :options="directionOptions"
+                      size="small"
+                      @update:model-value="value => (radioGroupDirection = value as 'horizontal' | 'vertical')"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-muted-foreground">size</span>
+                    <XSegmented
+                      :model-value="radioGroupSize"
+                      :options="sizeOptions"
+                      size="small"
+                      @update:model-value="value => (radioGroupSize = value as 'small' | 'medium' | 'large')"
+                    />
+                  </div>
+                </div>
+                <XRadioGroup
+                  v-model="radioGroupValue"
+                  :options="radioGroupOptions"
+                  :direction="radioGroupDirection"
+                  :size="radioGroupSize"
+                />
+                <XText type="secondary" size="sm">当前值：{{ radioGroupValue ?? '未选' }}</XText>
+              </div>
+            </XCard>
+          </section>
+
+          <!-- XCheckboxGroup -->
+          <section id="section-checkboxgroup" class="scroll-mt-4">
+            <XCard title="XCheckboxGroup 多选" title-prefix>
+              <div class="flex flex-col gap-4 py-1">
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-muted-foreground">direction</span>
+                    <XSegmented
+                      :model-value="checkboxGroupDirection"
+                      :options="directionOptions"
+                      size="small"
+                      @update:model-value="value => (checkboxGroupDirection = value as 'horizontal' | 'vertical')"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-muted-foreground">size</span>
+                    <XSegmented
+                      :model-value="checkboxGroupSize"
+                      :options="sizeOptions"
+                      size="small"
+                      @update:model-value="value => (checkboxGroupSize = value as 'small' | 'medium' | 'large')"
+                    />
+                  </div>
+                </div>
+                <XCheckboxGroup
+                  v-model="checkboxGroupValue"
+                  :options="checkboxGroupOptions"
+                  :direction="checkboxGroupDirection"
+                  :size="checkboxGroupSize"
+                  show-check-all
+                />
+                <XText type="secondary" size="sm">
+                  当前值：{{ checkboxGroupValue.length ? checkboxGroupValue.join('、') : '未选' }}
+                </XText>
               </div>
             </XCard>
           </section>
